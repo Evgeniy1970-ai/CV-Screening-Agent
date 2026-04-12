@@ -1,0 +1,226 @@
+{
+  "name": "CV Screening — Comparative Report",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "77f0890a-f20e-4a30-9805-a2f8d184f65c",
+      "name": "Telegram Trigger",
+      "webhookId": "98c2e97b-d449-436e-81c6-e6523d8ce64a",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_BOT_TOKEN",
+          "name": "cv_screening_agent_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.message.text.trim();\n\nif (!text.startsWith('/report')) {\n  throw new Error('SKIP: not a report command');\n}\n\nconst jobId = text.replace('/report', '').trim();\n\nif (!jobId) {\n  throw new Error('Usage: /report JOB-001');\n}\n\nreturn { json: { job_id: jobId } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4fbad692-a2b0-4667-b660-300cd59d212f",
+      "name": "Parse Command"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(item => item.json);\n\nconst summary = items.map(c => \n  `- ${c.Candidate}: Score ${c.Score}/100 (${c.Tier}) | Skills: ${c['Skills Matched']} | Flags: ${c['Red Flags'] || 'None'}`\n).join('\\n');\n\nreturn { \n  json: { \n    job_id: items[0]?.['Job ID'] || 'Unknown',\n    job_title: items[0]?.['Job Title'] || 'Unknown',\n    total_candidates: items.length,\n    candidates_summary: summary,\n    raw_data: JSON.stringify(items)\n  } \n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "7db7f1b8-80e7-4455-850b-a479edf60225",
+      "name": "Prepare Report Data"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU",
+          "mode": "list",
+          "cachedResultName": "CV Screening — Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Job ID",
+              "lookupValue": "={{ $('Parse Command').item.json.job_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        0
+      ],
+      "id": "0acaa63a-a1d3-4fed-a15c-fd7285dcb3fe",
+      "name": "Fetch All Candidates",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEET_ID",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an HR analytics assistant. Generate concise comparative reports about job candidates. Always respond in plain text, not JSON."
+            },
+            {
+              "content": "=Generate a comparative report for the position {{ $json.job_title }} ({{ $json.job_id }}).\n\nTotal candidates: {{ $json.total_candidates }}\n\nCandidates:\n{{ $json.candidates_summary }}\n\nPlease provide:\n1. Ranking of all candidates from best to worst\n2. Top recommendation (who to interview first and why)\n3. Summary of the talent pool quality\nKeep it concise - max 15 lines."
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        832,
+        0
+      ],
+      "id": "ff398057-5362-4ef5-a1e5-0dfb17f9fe35",
+      "name": "LLM Report Generator",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_API_KEY",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=391064585",
+        "text": "=📊 COMPARATIVE REPORT\n\n{{ $input.first().json.output[0].content[0].text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "cbe245ef-0bde-41c9-af0c-bcf8b2593e6f",
+      "name": "Telegram: Send Report",
+      "webhookId": "b5c84b6a-d118-4c52-a0ea-ae2da84eae71",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_BOT_TOKEN",
+          "name": "cv_screening_agent_bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Report Data": {
+      "main": [
+        [
+          {
+            "node": "LLM Report Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Candidates": {
+      "main": [
+        [
+          {
+            "node": "Prepare Report Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Report Generator": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Send Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "69cac4b4-5aaa-4cae-ad7b-257ca5996f57",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b8dc6b20db443e18892a3a7897076c0d1944dd1743dde315e88e0ce0d3ed7ca6"
+  },
+  "id": "O6cRWX-2bxmYn1yrYt_3T",
+  "tags": []
+}
