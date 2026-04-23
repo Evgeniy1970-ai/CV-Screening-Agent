@@ -1,0 +1,966 @@
+{
+  "name": "CV Screening Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output[0].content[0].text;\nconst parsed = JSON.parse(raw);\nreturn { json: parsed };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -16
+      ],
+      "id": "37f4027a-6ce1-409a-8d9a-d49f5609cefc",
+      "name": "JSON Parser"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('CV Intake Webhook').item.json.body.candidate_email }}",
+        "subject": "=Your application for {{ $('Fetch Job Requirements').item.json.job_title }} — Next steps",
+        "message": "=Dear {{ $('JSON Parser').item.json.candidate_name }},  Thank you for your application for the {{ $('Fetch Job Requirements').item.json.job_title }} position.  We have reviewed your CV and are impressed with your profile. We would like to invite you for an interview to discuss the role further.  Could you share your availability for a 30-minute call this week or next?  Best regards, HR Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1264,
+        -112
+      ],
+      "id": "8f14ae73-63ac-400d-9962-16cc9340146e",
+      "name": "Email: Interview Invite",
+      "webhookId": "70f89a24-a7b2-4fd3-b249-4916a6134c91",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('CV Intake Webhook').item.json.body.candidate_email }}",
+        "subject": "=Your application for {{ $('Fetch Job Requirements').item.json.job_title }}",
+        "message": "=Dear {{ $('JSON Parser').item.json.candidate_name }},  Thank you for taking the time to apply for the {{ $('Fetch Job Requirements').item.json.job_title }} position.  After careful review, we have decided to move forward with other candidates whose experience more closely matches our current needs.  We appreciate your interest and encourage you to apply for future openings.  Best regards, HR Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1104,
+        96
+      ],
+      "id": "5f29c1b6-a4cd-41a2-8a2d-598b35fa109a",
+      "name": "Email: Polite Decline",
+      "webhookId": "ca3e3de5-1ffd-41f5-9ece-3842c27e94f2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const mammoth = require('mammoth');\nconst binaryData = await this.helpers.getBinaryDataBuffer(0, 'file0');\n\nconst result = await mammoth.extractRawText({ buffer: binaryData });\n\nreturn { json: { text: result.value } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        128
+      ],
+      "id": "37c83770-2b7a-42e0-b492-1df9540c3dc0",
+      "name": "Extract from DOCX"
+    },
+    {
+      "parameters": {
+        "jsCode": "let cvText = '';\n\ntry {\n  cvText = $('Extract from PDF').first().json.text;\n} catch (e) {\n  // PDF node didn't run\n}\n\nif (!cvText) {\n  try {\n    cvText = $('Extract from DOCX').first().json.text;\n  } catch (e) {\n    // DOCX node didn't run either\n  }\n}\n\nconst sheetData = $('Fetch Job Requirements').first().json;\n\nreturn {\n  json: {\n    ...sheetData,\n    cv_text: cvText\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -16
+      ],
+      "id": "6eb92caa-d53a-4742-ba9a-68d0fd6431cc",
+      "name": "Prepare CV Text"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cv-screening",
+        "options": {
+          "allowedOrigins": "*",
+          "binaryPropertyName": "file"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1120,
+        0
+      ],
+      "id": "b1b55610-2946-47ca-84ba-8e3851df5652",
+      "name": "CV Intake Webhook",
+      "webhookId": "630b85c5-9fc8-4e75-b366-87c9679a9662"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $binary.file0.fileName.split('.').pop() }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6675c489-01b7-4ea3-8a10-43468396cfce"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "809be46e-1ffb-43e0-a6eb-67f00d2bfd31",
+                    "leftValue": "={{ $binary.file0.fileName.split('.').pop() }}",
+                    "rightValue": "docx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -752,
+        0
+      ],
+      "id": "4d590cec-9735-4b42-ae4e-a9207301c49c",
+      "name": "Format Router"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "file0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -576,
+        -80
+      ],
+      "id": "fa40a5d7-60bd-434d-9735-d86b2f18333d",
+      "name": "Extract from PDF"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1kLEBclajlxrkJATa2tNuLwPIlQGpVmx7VfdrpbwcKcM",
+          "mode": "list",
+          "cachedResultName": "CV Screening — Job Requirements",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kLEBclajlxrkJATa2tNuLwPIlQGpVmx7VfdrpbwcKcM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kLEBclajlxrkJATa2tNuLwPIlQGpVmx7VfdrpbwcKcM/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "job_id",
+              "lookupValue": "={{ $('CV Intake Webhook').item.json.body.job_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -272,
+        -16
+      ],
+      "id": "4272eb11-dcd5-4b6c-997b-bee8b9cdfedb",
+      "name": "Fetch Job Requirements",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an expert HR screening assistant. You analyze CVs against job requirements and provide structured assessments.\n\nYou MUST respond ONLY with valid JSON, no markdown, no extra text."
+            },
+            {
+              "content": "=Analyze this CV against the job requirements below.\n\n### JOB REQUIREMENTS:\n- Position: {{ $('Fetch Job Requirements').item.json.job_title }}\n- Required skills: {{ $('Fetch Job Requirements').item.json.required_skills }}\n- Nice to have: {{ $('Fetch Job Requirements').item.json.nice_to_have }}\n- Minimum experience: {{ $('Fetch Job Requirements').item.json.min_experience_years }} years\n- Description: {{ $('Fetch Job Requirements').item.json.description }}\n\n### CANDIDATE CV:\n{{ $json.cv_text }}\n\n### YOUR TASK:\n1. Score the candidate from 0 to 100 based on how well they match the requirements\n2. List GREEN FLAGS (strong matches with the job)\n3. List RED FLAGS (concerns, gaps, mismatches)\n4. Write a brief recommendation (2-3 sentences)\n\n### OUTPUT FORMAT (JSON only, no markdown):\n{\n  \"candidate_name\": \"\",\n  \"job_id\": \"{{ $('CV Intake Webhook').item.json.body.job_id }}\",\n  \"score\": 0,\n  \"green_flags\": [\"flag1\", \"flag2\"],\n  \"red_flags\": [\"flag1\", \"flag2\"],\n  \"skills_matched\": [\"skill1\", \"skill2\"],\n  \"skills_missing\": [\"skill1\", \"skill2\"],\n  \"experience_years\": 0,\n  \"recommendation\": \"\",\n  \"tier\": \"\"\n}\n\nSCORING GUIDE:\n- 90-100: Perfect match, immediate interview\n- 70-89: Strong candidate, recommend interview\n- 50-69: Partial match, review manually\n- 0-49: Poor match, archive\n\nSet \"tier\" based on the score: \"EXCELLENT\", \"STRONG\", \"REVIEW\", or \"ARCHIVE\"."
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        -16
+      ],
+      "id": "ed7934a6-039b-4bb6-9cb2-e546d0050ea4",
+      "name": "LLM Screening Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b1b45aa6-dd69-45e0-b8e2-d4f311f044a3",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": "={{ $('Fetch Job Requirements').item.json.threshold_score }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        736,
+        -16
+      ],
+      "id": "126ab010-eaf8-4e2e-b666-fdd8f654c9a6",
+      "name": "Score Threshold Gate"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU",
+          "mode": "list",
+          "cachedResultName": "CV Screening — Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('dd.MM.yyyy HH:mm') }}",
+            "Candidate": "={{ $('JSON Parser').item.json.candidate_name }}",
+            "Job ID": "={{ $('JSON Parser').item.json.job_id }}",
+            "Job Title": "={{ $('Fetch Job Requirements').item.json.job_title }}",
+            "Score": "={{ $('JSON Parser').item.json.score }}",
+            "Tier": "={{ $('JSON Parser').item.json.tier }}",
+            "Green Flags": "={{ $('JSON Parser').item.json.green_flags.join(', ') }}",
+            "Red Flags": "={{ $('JSON Parser').item.json.red_flags.join(', ') }}",
+            "Skills Matched": "={{ $('JSON Parser').item.json.skills_matched.join(', ') }}",
+            "Skills Missing": "={{ $('JSON Parser').item.json.skills_missing.join(', ') }}",
+            "Experience": "={{ $('JSON Parser').item.json.experience_years }}",
+            "Recommendation": "={{ $('JSON Parser').item.json.recommendation }}",
+            "Status": "Interview Scheduled"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Candidate",
+              "displayName": "Candidate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job ID",
+              "displayName": "Job ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tier",
+              "displayName": "Tier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Green Flags",
+              "displayName": "Green Flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Red Flags",
+              "displayName": "Red Flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills Matched",
+              "displayName": "Skills Matched",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills Missing",
+              "displayName": "Skills Missing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        928,
+        -112
+      ],
+      "id": "c71c22c8-68ce-461b-940f-e149bfe85c17",
+      "name": "Log: Top Candidates",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE SHEETS_CREDENTIAL",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "391064585",
+        "text": "=🎯 NEW TOP CANDIDATE!  👤 {{ $('JSON Parser').item.json.candidate_name }} 💼 Position: {{ $('Fetch Job Requirements').item.json.job_title }} 📊 Score: {{ $('JSON Parser').item.json.score }}/100 🏆 Tier: {{ $('JSON Parser').item.json.tier }}  ✅ Green flags: {{ $('JSON Parser').item.json.green_flags.join('\\n') }}  ⚠️ Red flags: {{ $('JSON Parser').item.json.red_flags.length > 0 ? $('JSON Parser').item.json.red_flags.join('\\n') : 'None' }}  📝 {{ $('JSON Parser').item.json.recommendation }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1088,
+        -112
+      ],
+      "id": "98317c0d-f7f7-491b-95a2-943c953c96d4",
+      "name": "Telegram: HR Alert",
+      "webhookId": "6e1d61dd-6e31-4aeb-877c-d787879a3f6b",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL",
+          "name": "cv_screening_agent_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU",
+          "mode": "list",
+          "cachedResultName": "CV Screening — Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PsaktBjJnJ8L06HXmQjqORbgItdpROaXvOBu_svUVAU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('dd.MM.yyyy HH:mm') }}",
+            "Candidate": "={{ $('JSON Parser').item.json.candidate_name }}",
+            "Job ID": "={{ $('JSON Parser').item.json.job_id }}",
+            "Job Title": "={{ $('Fetch Job Requirements').item.json.job_title }}",
+            "Score": "={{ $('JSON Parser').item.json.score }}",
+            "Tier": "={{ $('JSON Parser').item.json.tier }}",
+            "Green Flags": "={{ $('JSON Parser').item.json.green_flags.join(', ') }}",
+            "Red Flags": "={{ $('JSON Parser').item.json.red_flags.join(', ') }}",
+            "Skills Matched": "={{ $('JSON Parser').item.json.skills_matched.join(', ') }}",
+            "Skills Missing": "={{ $('JSON Parser').item.json.skills_missing.join(', ') }}",
+            "Experience": "={{ $('JSON Parser').item.json.experience_years }}",
+            "Recommendation": "={{ $('JSON Parser').item.json.recommendation }}",
+            "Status": "Declined"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Candidate",
+              "displayName": "Candidate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job ID",
+              "displayName": "Job ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tier",
+              "displayName": "Tier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Green Flags",
+              "displayName": "Green Flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Red Flags",
+              "displayName": "Red Flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills Matched",
+              "displayName": "Skills Matched",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills Missing",
+              "displayName": "Skills Missing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        928,
+        96
+      ],
+      "id": "5a28dca2-b126-428c-b0db-23647ca0de79",
+      "name": "Log: Archive",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE SHEETS_CREDENTIAL",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\n\n// 1. Check if file exists\nif (!item.binary || !item.binary.file0) {\n  throw new Error('No file attached. Please send a CV file (PDF or DOCX).');\n}\n\n// 2. Check if job_id exists\nif (!item.json.body?.job_id) {\n  throw new Error('Missing job_id. Please include job_id in your request.');\n}\n\n// 3. Check file format\nconst fileName = item.binary.file0.fileName || '';\nconst extension = fileName.split('.').pop().toLowerCase();\n\nif (!['pdf', 'docx'].includes(extension)) {\n  throw new Error(`Unsupported file format: .${extension}. Only PDF and DOCX are accepted.`);\n}\n\n// 4. All checks passed — forward data\nreturn [item];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        0
+      ],
+      "id": "bbedf4c3-79c0-4734-b542-da6fc18ca77b",
+      "name": "Input Validator"
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidate = $input.first().json.candidate_name;\nconst jobId = $input.first().json.job_id;\n\n// Create a unique key\nconst key = `${candidate}_${jobId}`.toLowerCase().replace(/\\s+/g, '_');\n\n// Check against static variable (persists across executions)\nconst seen = $getWorkflowStaticData('global');\n\nif (seen[key]) {\n  throw new Error(`Duplicate: ${candidate} already screened for ${jobId}`);\n}\n\n// Mark as seen\nseen[key] = new Date().toISOString();\n\n// Pass data through\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "05c7a26e-21c3-4a82-a36e-a2b432f62c86",
+      "name": "Duplicate Guard"
+    },
+    {
+      "parameters": {
+        "content": "📥 CV INTAKE\nReceives CV submissions via webhook.\nValidates file format and required fields.",
+        "height": 304,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1168,
+        -128
+      ],
+      "id": "f1101ad5-42ff-4988-a42a-ffaec4a0828c",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "📄 FILE PROCESSING\nRoutes PDF and DOCX files to separate extractors.\nConverts CV content to plain text for AI analysis.",
+        "height": 464,
+        "width": 368,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -784,
+        -192
+      ],
+      "id": "50e031b8-4698-4287-9707-1909b5f4a7bc",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "🤖 AI SCREENING\nFetches job requirements from Google Sheets.\nLLM scores the CV against configurable criteria.",
+        "height": 368,
+        "width": 704,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -192
+      ],
+      "id": "633a316a-efb8-43d1-baa4-f4355e58231a",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "✅ VALIDATION & ROUTING\nParses AI response into structured JSON.\nRemoves duplicates and routes by score threshold.",
+        "height": 368,
+        "width": 496,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        384,
+        -192
+      ],
+      "id": "fccc6e32-cfc5-43b1-a7a1-9814d3a3c294",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "📤 OUTPUT\nTop candidates: logged to Sheets + HR alert via Telegram + interview invite.\nLow scorers: archived + polite decline email sent.",
+        "height": 512,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        896,
+        -256
+      ],
+      "id": "9bc0f384-7b1a-4de5-b8c3-40b74909c412",
+      "name": "Sticky Note4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "JSON Parser": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Interview Invite": {
+      "main": [
+        []
+      ]
+    },
+    "Extract from DOCX": {
+      "main": [
+        [
+          {
+            "node": "Fetch Job Requirements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare CV Text": {
+      "main": [
+        [
+          {
+            "node": "LLM Screening Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV Intake Webhook": {
+      "main": [
+        [
+          {
+            "node": "Input Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Router": {
+      "main": [
+        [
+          {
+            "node": "Extract from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from DOCX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from PDF": {
+      "main": [
+        [
+          {
+            "node": "Fetch Job Requirements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Job Requirements": {
+      "main": [
+        [
+          {
+            "node": "Prepare CV Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Screening Agent": {
+      "main": [
+        [
+          {
+            "node": "JSON Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Threshold Gate": {
+      "main": [
+        [
+          {
+            "node": "Log: Top Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: Archive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Top Candidates": {
+      "main": [
+        [
+          {
+            "node": "Telegram: HR Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: HR Alert": {
+      "main": [
+        [
+          {
+            "node": "Email: Interview Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Archive": {
+      "main": [
+        [
+          {
+            "node": "Email: Polite Decline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validator": {
+      "main": [
+        [
+          {
+            "node": "Format Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Guard": {
+      "main": [
+        [
+          {
+            "node": "Score Threshold Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "6679nTUbnBE1tTslH6wiu",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "57a27fff-1107-4630-92c3-92c46255ce74",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b8dc6b20db443e18892a3a7897076c0d1944dd1743dde315e88e0ce0d3ed7ca6"
+  },
+  "id": "aCL6iKaxHJPvZrasrR_Ih",
+  "tags": []
+}

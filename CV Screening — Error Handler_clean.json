@@ -1,0 +1,81 @@
+{
+  "name": "CV Screening — Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4d3745e9-76c5-4b40-b141-d609e9576a19",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "chatId": "391064585",
+        "text": "=🚨 CV SCREENING ERROR!  ❌ Node: {{ $json.execution.error.node.name }} 📛 Error: {{ $json.execution.error.message }} 🕐 Time: {{ $now.format('dd.MM.yyyy HH:mm') }} 🔗 Execution: {{ $json.execution.url }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "fcefeb17-9e77-48c3-b627-66bcaa215859",
+      "name": "Send a text message",
+      "webhookId": "2d1d82ca-7f61-4b4f-842c-ca5d42fe404b",
+      "credentials": {
+        "telegramApi": {
+          "id": "UjLGPIopUL4I98rP",
+          "name": "cv_screening_agent_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "🚨 ERROR HANDLER\nMonitors all CV Screening workflows for failures.\nSends instant SOS alert via Telegram if any node fails.\nConnect this workflow in Settings → Error Workflow\nof each main workflow.",
+        "height": 352,
+        "width": 480,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -192
+      ],
+      "id": "937e92df-44e7-4332-8a51-f8ce255e7698",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e9bbef62-f85a-4d47-8b4e-e8944e890f78",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b8dc6b20db443e18892a3a7897076c0d1944dd1743dde315e88e0ce0d3ed7ca6"
+  },
+  "id": "6679nTUbnBE1tTslH6wiu",
+  "tags": []
+}
