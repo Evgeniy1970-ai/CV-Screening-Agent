@@ -212,7 +212,7 @@ MIT License — free to use, modify, and deploy for commercial purposes.
 
 **Yevhenii Nohin** — AI Automation Specialist
 
-- 🌐 [neolithai.netlify.app](https://neolithai.netlify.app)
+- 🌐 [neolithai.agency](https://neolithai.agency)
 - 💼 [Upwork Profile](https://www.upwork.com/freelancers/~013cd102dcb30a209f)
 - 🐙 [GitHub](https://github.com/Evgeniy1970-ai)
 
